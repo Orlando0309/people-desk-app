@@ -37,7 +37,10 @@ class SupportController extends ChangeNotifier {
     notifyListeners();
     try {
       final res = await _api.getJson('/support/tickets');
-      final list = res['data'] is List ? res['data'] as List : (res['items'] is List ? res['items'] as List : const []);
+      // API returns {tickets: [...]}, fallback to data/items for mock compatibility
+      final list = res['tickets'] is List
+          ? res['tickets'] as List
+          : (res['data'] is List ? res['data'] as List : (res['items'] is List ? res['items'] as List : const []));
       tickets = list
           .whereType<Map>()
           .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
@@ -46,7 +49,7 @@ class SupportController extends ChangeNotifier {
               id: (j['id'] ?? j['_id'] ?? '').toString(),
               subject: (j['subject'] ?? 'Ticket').toString(),
               status: (j['status'] ?? 'open').toString(),
-              createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? '') ?? DateTime.now(),
+              createdAt: DateTime.tryParse(j['created_at']?.toString() ?? j['createdAt']?.toString() ?? '') ?? DateTime.now(),
             ),
           )
           .toList(growable: false);
@@ -62,12 +65,13 @@ class SupportController extends ChangeNotifier {
   Future<TicketDetail?> fetchDetail(String id) async {
     try {
       final res = await _api.getJson('/support/tickets/$id');
+      // API may return direct ticket object or wrapped in 'data'
       final data = (res['data'] is Map<String, dynamic>) ? res['data'] as Map<String, dynamic> : res;
       final ticket = SupportTicket(
         id: id,
         subject: (data['subject'] ?? 'Ticket').toString(),
         status: (data['status'] ?? 'open').toString(),
-        createdAt: DateTime.tryParse(data['createdAt']?.toString() ?? '') ?? DateTime.now(),
+        createdAt: DateTime.tryParse(data['created_at']?.toString() ?? data['createdAt']?.toString() ?? '') ?? DateTime.now(),
       );
 
       final rawReplies = data['replies'];
@@ -78,9 +82,9 @@ class SupportController extends ChangeNotifier {
               .map(
                 (j) => TicketReply(
                   id: (j['id'] ?? j['_id'] ?? '').toString(),
-                  message: (j['message'] ?? '').toString(),
-                  createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? '') ?? DateTime.now(),
-                  fromStaff: j['fromStaff'] == true,
+                  message: (j['message'] ?? j['content'] ?? '').toString(),
+                  createdAt: DateTime.tryParse(j['created_at']?.toString() ?? j['createdAt']?.toString() ?? '') ?? DateTime.now(),
+                  fromStaff: j['from_staff'] == true || j['fromStaff'] == true,
                 ),
               )
               .toList(growable: false)
@@ -93,12 +97,16 @@ class SupportController extends ChangeNotifier {
     }
   }
 
-  Future<void> createTicket({required String subject, required String message}) async {
+  Future<void> createTicket({required String subject, required String message, String category = 'other'}) async {
     isLoading = true;
     error = null;
     notifyListeners();
     try {
-      await _api.postJson('/support/tickets', body: {'subject': subject, 'message': message});
+      await _api.postJson('/support/tickets', body: {
+        'subject': subject,
+        'description': message,
+        'category': category,
+      });
       await refresh();
     } catch (e) {
       debugPrint('SupportController.createTicket failed: $e');
@@ -111,7 +119,7 @@ class SupportController extends ChangeNotifier {
 
   Future<void> replyToTicket(String id, {required String message}) async {
     try {
-      await _api.postJson('/support/tickets/$id/replies', body: {'message': message});
+      await _api.postJson('/support/tickets/$id/reply', body: {'message': message});
     } catch (e) {
       debugPrint('SupportController.replyToTicket failed: $e');
     }

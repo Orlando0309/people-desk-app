@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:people_desk/state/attendance_controller.dart';
+import 'package:people_desk/state/auth_controller.dart';
 import 'package:people_desk/state/leave_controller.dart';
 import 'package:people_desk/state/notifications_controller.dart';
 import 'package:people_desk/theme.dart';
@@ -25,8 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_bootstrapped) return;
     _bootstrapped = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AttendanceController>().refreshAll();
-      context.read<LeaveController>().refreshAll();
+      final employeeId = context.read<AuthController>().user?.employeeId;
+      context.read<AttendanceController>().refreshAll(employeeId);
+      context.read<LeaveController>().refreshAll(employeeId);
       context.read<NotificationsController>().refresh();
     });
   }
@@ -49,8 +51,9 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             tooltip: 'Refresh',
             onPressed: () {
-              attendance.refreshAll();
-              leave.refreshAll();
+              final employeeId = context.read<AuthController>().user?.employeeId;
+              attendance.refreshAll(employeeId);
+              leave.refreshAll(employeeId);
               notifications.refresh();
             },
             icon: Icon(Icons.refresh_rounded, color: cs.onSurface),
@@ -69,10 +72,15 @@ class _HomeScreenState extends State<HomeScreen> {
             onPrimaryAction: (attendance.isLoading)
                 ? null
                 : () {
+                    final employeeId = context.read<AuthController>().user?.employeeId;
                     if (canClockIn) {
-                      attendance.clockIn();
+                      attendance.clockIn(employeeId);
                     } else if (clockedIn) {
-                      attendance.clockOut();
+                      attendance.clockOut(employeeId);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("You've completed today's attendance.")),
+                      );
                     }
                   },
             isLoading: attendance.isLoading,

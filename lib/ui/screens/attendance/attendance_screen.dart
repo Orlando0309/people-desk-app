@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:people_desk/state/attendance_controller.dart';
+import 'package:people_desk/state/auth_controller.dart';
 import 'package:people_desk/theme.dart';
 import 'package:people_desk/ui/utils/formatters.dart';
 import 'package:people_desk/ui/widgets/app_empty_state.dart';
@@ -22,13 +23,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     super.didChangeDependencies();
     if (_bootstrapped) return;
     _bootstrapped = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) => context.read<AttendanceController>().refreshAll());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final employeeId = context.read<AuthController>().user?.employeeId;
+      context.read<AttendanceController>().refreshAll(employeeId);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final ctrl = context.watch<AttendanceController>();
+    final employeeId = context.watch<AuthController>().user?.employeeId;
 
     // Calculate attendance statistics
     int present = 0;
@@ -46,7 +51,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       appBar: AppBar(
         title: const Text('Attendance'),
         actions: [
-          IconButton(onPressed: ctrl.refreshAll, icon: Icon(Icons.refresh_rounded, color: cs.onSurface)),
+          IconButton(onPressed: () => ctrl.refreshAll(employeeId), icon: Icon(Icons.refresh_rounded, color: cs.onSurface)),
           const SizedBox(width: AppSpacing.xs),
         ],
       ),

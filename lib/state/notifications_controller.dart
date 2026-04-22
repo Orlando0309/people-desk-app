@@ -26,7 +26,10 @@ class NotificationsController extends ChangeNotifier {
     notifyListeners();
     try {
       final res = await _api.getJson('/notifications');
-      final list = res['data'] is List ? res['data'] as List : (res['items'] is List ? res['items'] as List : const []);
+      // API returns {notifications: [...]}, fallback to data/items for mock compatibility
+      final list = res['notifications'] is List
+          ? res['notifications'] as List
+          : (res['data'] is List ? res['data'] as List : (res['items'] is List ? res['items'] as List : const []));
       items = list
           .whereType<Map>()
           .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
@@ -35,8 +38,9 @@ class NotificationsController extends ChangeNotifier {
               id: (j['id'] ?? j['_id'] ?? '').toString(),
               title: (j['title'] ?? 'Notification').toString(),
               body: (j['body'] ?? j['message'] ?? '').toString(),
-              createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? '') ?? DateTime.now(),
-              read: j['read'] == true,
+              createdAt: DateTime.tryParse(j['created_at']?.toString() ?? j['createdAt']?.toString() ?? '') ?? DateTime.now(),
+              // API uses is_read, mock uses read
+              read: j['is_read'] == true || j['read'] == true,
             ),
           )
           .toList(growable: false);
@@ -51,7 +55,7 @@ class NotificationsController extends ChangeNotifier {
 
   Future<void> markRead(String id) async {
     try {
-      await _api.postJson('/notifications/$id/read');
+      await _api.putJson('/notifications/$id/read');
     } catch (e) {
       debugPrint('NotificationsController.markRead failed: $e');
     }

@@ -18,12 +18,17 @@ class AttendanceController extends ChangeNotifier {
   AttendanceDay? today;
   List<AttendanceDay> history = const [];
 
-  Future<void> refreshAll() async {
+  Future<void> refreshAll(String? employeeId) async {
+    if (employeeId == null) {
+      error = 'Employee ID required';
+      notifyListeners();
+      return;
+    }
     isLoading = true;
     error = null;
     notifyListeners();
     try {
-      await Future.wait([fetchToday(), fetchHistory()]);
+      await Future.wait([fetchToday(employeeId), fetchHistory()]);
     } catch (e) {
       debugPrint('AttendanceController.refreshAll failed: $e');
     } finally {
@@ -32,9 +37,14 @@ class AttendanceController extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchToday() async {
+  Future<void> fetchToday(String? employeeId) async {
+    if (employeeId == null) {
+      error = 'Employee ID required';
+      notifyListeners();
+      return;
+    }
     try {
-      final res = await _api.getJson('/attendance/today');
+      final res = await _api.getJson('/attendance/today/$employeeId');
       final data = (res['data'] is Map<String, dynamic>) ? res['data'] as Map<String, dynamic> : res;
       today = _mapDay(data);
     } catch (e) {
@@ -48,7 +58,10 @@ class AttendanceController extends ChangeNotifier {
   Future<void> fetchHistory() async {
     try {
       final res = await _api.getJson('/attendance');
-      final list = res['data'] is List ? res['data'] as List : (res['items'] is List ? res['items'] as List : const []);
+      // API returns {attendances: [...]}, fallback to data/items for mock compatibility
+      final list = res['attendances'] is List
+          ? res['attendances'] as List
+          : (res['data'] is List ? res['data'] as List : (res['items'] is List ? res['items'] as List : const []));
       history = list
           .whereType<Map>()
           .map((e) => _mapDay(e.map((k, v) => MapEntry(k.toString(), v))))
@@ -61,21 +74,26 @@ class AttendanceController extends ChangeNotifier {
     }
   }
 
-  Future<void> clockIn() async {
-    await _clockAction('/attendance/clock-in');
+  Future<void> clockIn(String? employeeId) async {
+    await _clockAction('/attendance/clock-in', employeeId);
   }
 
-  Future<void> clockOut() async {
-    await _clockAction('/attendance/clock-out');
+  Future<void> clockOut(String? employeeId) async {
+    await _clockAction('/attendance/clock-out', employeeId);
   }
 
-  Future<void> _clockAction(String path) async {
+  Future<void> _clockAction(String path, String? employeeId) async {
+    if (employeeId == null) {
+      error = 'Employee ID required';
+      notifyListeners();
+      return;
+    }
     isLoading = true;
     error = null;
     notifyListeners();
     try {
-      await _api.postJson(path);
-      await refreshAll();
+      await _api.postJson(path, body: {'employee_id': employeeId});
+      await refreshAll(employeeId);
     } catch (e) {
       debugPrint('AttendanceController clock action failed: $e');
       error = 'Clock action failed';
@@ -91,8 +109,8 @@ class AttendanceController extends ChangeNotifier {
     return AttendanceDay(
       date: date,
       status: (json['status'] ?? 'Unknown').toString(),
-      clockInAt: json['clockInAt']?.toString(),
-      clockOutAt: json['clockOutAt']?.toString(),
+      clockInAt: json['clock_in']?.toString() ?? json['clockInAt']?.toString(),
+      clockOutAt: json['clock_out']?.toString() ?? json['clockOutAt']?.toString(),
     );
   }
 }

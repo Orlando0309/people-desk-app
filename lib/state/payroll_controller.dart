@@ -35,17 +35,20 @@ class PayrollController extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      final res = await _api.getJson('/payslips');
-      final list = res['data'] is List ? res['data'] as List : (res['items'] is List ? res['items'] as List : const []);
+      final res = await _api.getJson('/payroll/approved');
+      // API returns {approved: [...]}, fallback to data/items for mock compatibility
+      final list = res['approved'] is List
+          ? res['approved'] as List
+          : (res['data'] is List ? res['data'] as List : (res['items'] is List ? res['items'] as List : const []));
       payslips = list
           .whereType<Map>()
           .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
           .map(
             (j) => Payslip(
               id: (j['id'] ?? j['_id'] ?? '').toString(),
-              label: (j['label'] ?? j['title'] ?? 'Payslip').toString(),
-              period: DateTime.tryParse(j['period']?.toString() ?? '') ?? DateTime.now(),
-              net: (j['net'] is num) ? (j['net'] as num).toDouble() : 0,
+              label: (j['label'] ?? j['fiche_paie_number'] ?? j['title'] ?? 'Payslip').toString(),
+              period: DateTime.tryParse(j['period_end']?.toString() ?? j['period']?.toString() ?? '') ?? DateTime.now(),
+              net: (j['net_salary'] ?? j['net']) is num ? ((j['net_salary'] ?? j['net']) as num).toDouble() : 0,
             ),
           )
           .toList(growable: false);
@@ -60,13 +63,14 @@ class PayrollController extends ChangeNotifier {
 
   Future<PayslipDetail?> fetchDetail(String id) async {
     try {
-      final res = await _api.getJson('/payslips/$id');
+      final res = await _api.getJson('/payroll/approved/$id');
+      // API may return direct payslip object or wrapped in 'data'
       final data = (res['data'] is Map<String, dynamic>) ? res['data'] as Map<String, dynamic> : res;
       final p = Payslip(
         id: id,
-        label: (data['label'] ?? data['title'] ?? 'Payslip').toString(),
-        period: DateTime.tryParse(data['period']?.toString() ?? '') ?? DateTime.now(),
-        net: (data['net'] is num) ? (data['net'] as num).toDouble() : 0,
+        label: (data['label'] ?? data['fiche_paie_number'] ?? data['title'] ?? 'Payslip').toString(),
+        period: DateTime.tryParse(data['period_end']?.toString() ?? data['period']?.toString() ?? '') ?? DateTime.now(),
+        net: (data['net_salary'] ?? data['net']) is num ? ((data['net_salary'] ?? data['net']) as num).toDouble() : 0,
       );
 
       List<PayslipLine> mapLines(dynamic raw) {

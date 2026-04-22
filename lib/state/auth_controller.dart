@@ -24,9 +24,14 @@ class AuthController extends ChangeNotifier {
     try {
       final tokens = await _storage.readTokens();
       if (tokens == null) return;
-      // Attempt to fetch current user; adjust endpoint to your backend.
-      final res = await _api.getJson('/me');
-      if (res['user'] is Map<String, dynamic>) user = User.fromJson(res['user'] as Map<String, dynamic>);
+      // Fetch current user profile from real API endpoint.
+      final res = await _api.getJson('/auth/profile');
+      if (res['user'] is Map<String, dynamic>) {
+        user = User.fromJson(res['user'] as Map<String, dynamic>);
+      } else if (res is Map<String, dynamic>) {
+        // Response might be the user object directly
+        user = User.fromJson(res);
+      }
     } catch (e) {
       debugPrint('AuthController.bootstrap failed: $e');
     } finally {
@@ -41,8 +46,9 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
     try {
       final res = await _api.postJson('/auth/login', body: {'email': email, 'password': password});
-      final access = res['accessToken'];
-      final refresh = res['refreshToken'];
+      // Parse snake_case fields from real API response
+      final access = res['access_token'] ?? res['accessToken'];
+      final refresh = res['refresh_token'] ?? res['refreshToken'];
       if (access is String && refresh is String) {
         await _storage.writeTokens(AuthTokens(accessToken: access, refreshToken: refresh));
       }

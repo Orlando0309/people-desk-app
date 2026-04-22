@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'package:people_desk/state/auth_controller.dart';
 import 'package:people_desk/state/leave_controller.dart';
 import 'package:people_desk/theme.dart';
 import 'package:people_desk/ui/utils/formatters.dart';
@@ -23,7 +24,10 @@ class _LeaveScreenState extends State<LeaveScreen> {
     super.didChangeDependencies();
     if (_bootstrapped) return;
     _bootstrapped = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) => context.read<LeaveController>().refreshAll());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final employeeId = context.read<AuthController>().user?.employeeId;
+      context.read<LeaveController>().refreshAll(employeeId);
+    });
   }
 
   void _openCreateSheet() {
@@ -44,7 +48,13 @@ class _LeaveScreenState extends State<LeaveScreen> {
       appBar: AppBar(
         title: const Text('Leave'),
         actions: [
-          IconButton(onPressed: ctrl.refreshAll, icon: Icon(Icons.refresh_rounded, color: cs.onSurface)),
+          IconButton(
+            onPressed: () {
+              final employeeId = context.read<AuthController>().user?.employeeId;
+              ctrl.refreshAll(employeeId);
+            },
+            icon: Icon(Icons.refresh_rounded, color: cs.onSurface),
+          ),
           const SizedBox(width: AppSpacing.xs),
         ],
       ),
@@ -200,7 +210,14 @@ class _CreateLeaveSheetState extends State<_CreateLeaveSheet> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final ctrl = context.read<LeaveController>();
-    await ctrl.createRequest(type: _type, start: _start, end: _end, reason: _reason.text.trim().isEmpty ? null : _reason.text.trim());
+    final employeeId = context.read<AuthController>().user?.employeeId;
+    await ctrl.createRequest(
+      employeeId: employeeId,
+      type: _type,
+      start: _start,
+      end: _end,
+      reason: _reason.text.trim().isEmpty ? null : _reason.text.trim(),
+    );
     if (!mounted) return;
     context.pop();
   }

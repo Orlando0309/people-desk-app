@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:people_desk/nav.dart';
+import 'package:people_desk/state/auth_controller.dart';
 import 'package:people_desk/state/notifications_controller.dart';
 import 'package:people_desk/state/theme_controller.dart';
 import 'package:people_desk/theme.dart';
@@ -31,19 +32,22 @@ class _TabShellState extends State<TabShell> {
     final unread = context.watch<NotificationsController>().unreadCount;
     final currentIndex = widget.navigationShell.currentIndex;
 
-    // Map old indices to new structure
-    // 0 -> Home, 1 -> Attendance, 2 -> Leave
-    int _mapToMainIndex(int oldIndex) {
-      if (oldIndex == 0) return 0; // Home
-      if (oldIndex == 1) return 1; // Attendance
-      if (oldIndex == 2) return 2; // Leave
-      return 0; // Default to Home
+    // Map current index to main tabs: 0=Home, 1=Menu, 2=Profile
+    int _mapToMainIndex(int currentIdx) {
+      if (currentIdx == 0) return 0; // Home
+      if (currentIdx == 1) return 1; // Menu
+      if (currentIdx == 2) return 2; // Profile
+      return 0;
     }
 
     final mainIndex = _mapToMainIndex(currentIndex);
 
+    // Skip showing appBar for menu sub-routes to avoid double AppBars
+    final currentRoute = ModalRoute.of(context)?.settings.name ?? '';
+    final isSubRoute = currentRoute.contains('/menu/');
+
     return Scaffold(
-      appBar: AppBar(
+      appBar: isSubRoute ? null : AppBar(
         backgroundColor: cs.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -105,7 +109,7 @@ class _TabShellState extends State<TabShell> {
           ),
         ],
       ),
-      drawer: Drawer(
+      drawer: isSubRoute ? null : Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -132,7 +136,6 @@ class _TabShellState extends State<TabShell> {
                 ],
               ),
             ),
-            // Secondary navigation items
             ListTile(
               leading: Icon(Icons.receipt_long_rounded, color: cs.primary),
               title: const Text('Payslips'),
@@ -147,16 +150,16 @@ class _TabShellState extends State<TabShell> {
             ListTile(
               leading: Icon(Icons.logout_rounded, color: cs.error),
               title: Text('Logout', style: TextStyle(color: cs.error)),
-              onTap: () {
-                // TODO: Implement logout
+              onTap: () async {
                 Navigator.pop(context);
+                await context.read<AuthController>().logout();
+                if (context.mounted) context.go(AppRoutes.login);
               },
             ),
           ],
         ),
       ),
       body: widget.navigationShell,
-      // Don't extend body behind bottom nav to prevent overflow
       extendBody: false,
       bottomNavigationBar: SafeArea(
         top: false,
@@ -175,13 +178,13 @@ class _TabShellState extends State<TabShell> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Leave (Left)
+                // Menu (Left)
                 _bottomNavItem(
                   context,
-                  Icons.beach_access_rounded,
-                  'Leave',
-                  isSelected: mainIndex == 2,
-                  onTap: () => _onTap(2),
+                  Icons.menu_rounded,
+                  'Menu',
+                  isSelected: mainIndex == 1,
+                  onTap: () => _onTap(1),
                 ),
                 // Home (Center)
                 _bottomNavItem(
@@ -191,13 +194,13 @@ class _TabShellState extends State<TabShell> {
                   isSelected: mainIndex == 0,
                   onTap: () => _onTap(0),
                 ),
-                // Attendance (Right)
+                // Profile (Right)
                 _bottomNavItem(
                   context,
-                  Icons.access_time_rounded,
-                  'Attendance',
-                  isSelected: mainIndex == 1,
-                  onTap: () => _onTap(1),
+                  Icons.person_rounded,
+                  'Profile',
+                  isSelected: mainIndex == 2,
+                  onTap: () => _onTap(2),
                 ),
               ],
             ),

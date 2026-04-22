@@ -4,16 +4,17 @@ import 'package:flutter/foundation.dart';
 
 /// Lightweight in-memory mock backend.
 ///
-/// This lets the app run in Dreamflow without depending on a localhost API.
-/// The goal is to keep the response *shape* similar to the real API so we can
-/// swap back later with minimal changes.
+/// This lets the app run without depending on a real API.
+/// The response shape matches the real API (snake_case fields, same endpoints).
 class MockApiServer {
   static final _rng = Random();
 
   static Map<String, dynamic> _user = <String, dynamic>{
     'id': 'usr_001',
     'email': 'demo@peopledesk.app',
-    'name': 'Demo User',
+    'full_name': 'Demo User',
+    'employee_id': 'emp_001',
+    'role': 'employee',
   };
 
   static final List<Map<String, dynamic>> _notifications = <Map<String, dynamic>>[
@@ -21,40 +22,46 @@ class MockApiServer {
       'id': 'ntf_001',
       'title': 'Welcome to PeopleDesk',
       'body': 'Your account is ready. Clock in to start your day.',
-      'createdAt': DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
-      'read': false,
+      'created_at': DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
+      'is_read': false,
     },
     {
       'id': 'ntf_002',
       'title': 'Leave policy updated',
       'body': 'Annual leave carry-forward rules were updated this week.',
-      'createdAt': DateTime.now().subtract(const Duration(days: 1, hours: 2)).toIso8601String(),
-      'read': true,
+      'created_at': DateTime.now().subtract(const Duration(days: 1, hours: 2)).toIso8601String(),
+      'is_read': true,
     },
   ];
 
   static final List<Map<String, dynamic>> _leaveRequests = <Map<String, dynamic>>[
     {
       'id': 'lv_001',
-      'type': 'Annual',
-      'start': DateTime.now().subtract(const Duration(days: 14)).toIso8601String(),
-      'end': DateTime.now().subtract(const Duration(days: 13)).toIso8601String(),
+      'leave_type': 'Annual',
+      'start_date': DateTime.now().subtract(const Duration(days: 14)).toIso8601String(),
+      'end_date': DateTime.now().subtract(const Duration(days: 13)).toIso8601String(),
       'status': 'approved',
     },
     {
       'id': 'lv_002',
-      'type': 'Sick',
-      'start': DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
-      'end': DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
+      'leave_type': 'Sick',
+      'start_date': DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
+      'end_date': DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
       'status': 'pending',
     },
   ];
 
-  static List<Map<String, dynamic>> _leaveBalances() => <Map<String, dynamic>>[
-        {'label': 'Annual', 'remaining': 12.0, 'total': 18.0},
-        {'label': 'Sick', 'remaining': 6.0, 'total': 10.0},
-        {'label': 'Casual', 'remaining': 3.0, 'total': 5.0},
-      ];
+  /// Leave balance as flat object (matching real API format)
+  static Map<String, dynamic> _leaveBalances() => <String, dynamic>{
+        'employee_id': 'emp_001',
+        'annual_total': 30.0,
+        'annual_used': 18.0,
+        'annual_remaining': 12.0,
+        'sick_total': 10.0,
+        'sick_used': 4.0,
+        'casual_total': 5.0,
+        'casual_remaining': 3.0,
+      };
 
   static Map<String, dynamic> _todayAttendance = _defaultToday();
   static List<Map<String, dynamic>> _attendanceHistory = _seedHistory();
@@ -62,15 +69,15 @@ class MockApiServer {
   static final List<Map<String, dynamic>> _payslips = <Map<String, dynamic>>[
     {
       'id': 'pay_2025_01',
-      'label': 'January 2025',
-      'period': DateTime(2025, 1, 31).toIso8601String(),
-      'net': 3125.45,
+      'fiche_paie_number': 'FP-2025-001',
+      'period_end': DateTime(2025, 1, 31).toIso8601String(),
+      'net_salary': 3125.45,
     },
     {
       'id': 'pay_2024_12',
-      'label': 'December 2024',
-      'period': DateTime(2024, 12, 31).toIso8601String(),
-      'net': 3052.10,
+      'fiche_paie_number': 'FP-2024-012',
+      'period_end': DateTime(2024, 12, 31).toIso8601String(),
+      'net_salary': 3052.10,
     },
   ];
 
@@ -79,13 +86,13 @@ class MockApiServer {
       'id': 'tkt_001',
       'subject': 'Unable to update bank details',
       'status': 'open',
-      'createdAt': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
+      'created_at': DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
       'replies': [
         {
           'id': 'r_001',
           'message': 'Hi! Can you share a screenshot of the error you see?',
-          'createdAt': DateTime.now().subtract(const Duration(days: 2, hours: 1)).toIso8601String(),
-          'fromStaff': true,
+          'created_at': DateTime.now().subtract(const Duration(days: 2, hours: 1)).toIso8601String(),
+          'from_staff': true,
         },
       ],
     },
@@ -93,13 +100,13 @@ class MockApiServer {
       'id': 'tkt_002',
       'subject': 'Payslip for last month missing',
       'status': 'resolved',
-      'createdAt': DateTime.now().subtract(const Duration(days: 12)).toIso8601String(),
+      'created_at': DateTime.now().subtract(const Duration(days: 12)).toIso8601String(),
       'replies': [
         {
           'id': 'r_002',
-          'message': 'We’ve re-generated your payslip. Please check again.',
-          'createdAt': DateTime.now().subtract(const Duration(days: 11, hours: 20)).toIso8601String(),
-          'fromStaff': true,
+          'message': 'We\'ve re-generated your payslip. Please check again.',
+          'created_at': DateTime.now().subtract(const Duration(days: 11, hours: 20)).toIso8601String(),
+          'from_staff': true,
         },
       ],
     },
@@ -111,8 +118,8 @@ class MockApiServer {
     return <String, dynamic>{
       'date': dateOnly.toIso8601String(),
       'status': 'Not clocked in',
-      'clockInAt': null,
-      'clockOutAt': null,
+      'clock_in': null,
+      'clock_out': null,
     };
   }
 
@@ -126,8 +133,8 @@ class MockApiServer {
       days.add({
         'date': dateOnly.toIso8601String(),
         'status': present ? 'Present' : 'Absent',
-        'clockInAt': present ? DateTime(d.year, d.month, d.day, 9, 10 + (i % 12)).toIso8601String() : null,
-        'clockOutAt': present ? DateTime(d.year, d.month, d.day, 18, 0 + (i % 20)).toIso8601String() : null,
+        'clock_in': present ? DateTime(d.year, d.month, d.day, 9, 10 + (i % 12)).toIso8601String() : null,
+        'clock_out': present ? DateTime(d.year, d.month, d.day, 18, 0 + (i % 20)).toIso8601String() : null,
       });
     }
     return days;
@@ -139,34 +146,41 @@ class MockApiServer {
     final normalized = _normalizePath(path);
     debugPrint('MockApiServer: $method $normalized');
 
-    // Auth
+    // Auth - login returns snake_case tokens
     if (method == 'POST' && normalized == '/auth/login') {
       final email = _readBodyMap(body)['email']?.toString();
       final password = _readBodyMap(body)['password']?.toString();
       if (email == null || email.isEmpty || password == null || password.isEmpty) {
         throw const MockApiException('Invalid credentials', statusCode: 400);
       }
-      _user = <String, dynamic>{..._user, 'email': email, 'name': _user['name'] ?? 'Demo User'};
+      _user = <String, dynamic>{..._user, 'email': email, 'full_name': _user['full_name'] ?? 'Demo User'};
       return <String, dynamic>{
-        'accessToken': 'mock_access_token',
-        'refreshToken': 'mock_refresh_token',
+        'access_token': 'mock_access_token',
+        'refresh_token': 'mock_refresh_token',
         'user': _user,
       };
     }
 
-    if (method == 'GET' && normalized == '/me') return <String, dynamic>{'user': _user};
+    // Auth profile endpoint (real API uses /auth/profile, not /me)
+    if (method == 'GET' && normalized == '/auth/profile') return <String, dynamic>{'user': _user};
 
-    // Attendance
-    if (method == 'GET' && normalized == '/attendance/today') return <String, dynamic>{'data': _todayAttendance};
-    if (method == 'GET' && normalized == '/attendance') return <String, dynamic>{'data': _attendanceHistory};
+    // Attendance - real API uses /attendance/today/:employee_id
+    final todayMatch = RegExp(r'^/attendance/today/(.+)$').firstMatch(normalized);
+    if (method == 'GET' && todayMatch != null) {
+      return <String, dynamic>{'data': _todayAttendance};
+    }
+    // Attendance history - API returns {attendances: [...]}
+    if (method == 'GET' && normalized == '/attendance') {
+      return <String, dynamic>{'attendances': _attendanceHistory};
+    }
 
     if (method == 'POST' && normalized == '/attendance/clock-in') {
       final now = DateTime.now();
-      if (_todayAttendance['clockInAt'] == null) {
+      if (_todayAttendance['clock_in'] == null) {
         _todayAttendance = <String, dynamic>{
           ..._todayAttendance,
           'status': 'Present',
-          'clockInAt': now.toIso8601String(),
+          'clock_in': now.toIso8601String(),
         };
       }
       return <String, dynamic>{'ok': true};
@@ -174,59 +188,73 @@ class MockApiServer {
 
     if (method == 'POST' && normalized == '/attendance/clock-out') {
       final now = DateTime.now();
-      if (_todayAttendance['clockInAt'] != null) {
-        _todayAttendance = <String, dynamic>{..._todayAttendance, 'clockOutAt': now.toIso8601String()};
+      if (_todayAttendance['clock_in'] != null) {
+        _todayAttendance = <String, dynamic>{..._todayAttendance, 'clock_out': now.toIso8601String()};
       }
       return <String, dynamic>{'ok': true};
     }
 
-    // Leave
-    if (method == 'GET' && normalized == '/leave/balances') return <String, dynamic>{'data': _leaveBalances()};
-    if (method == 'GET' && normalized == '/leave/requests') return <String, dynamic>{'data': _leaveRequests};
+    // Leave - real API uses /leaves/balance/:employee_id and /leaves
+    final leaveBalanceMatch = RegExp(r'^/leaves/balance/(.+)$').firstMatch(normalized);
+    if (method == 'GET' && leaveBalanceMatch != null) {
+      // Return flat object matching real API format
+      return _leaveBalances();
+    }
+    // Leave requests - API returns {leaves: [...]}
+    if (method == 'GET' && normalized == '/leaves') {
+      return <String, dynamic>{'leaves': _leaveRequests};
+    }
 
-    if (method == 'POST' && normalized == '/leave/requests') {
+    if (method == 'POST' && normalized == '/leaves') {
       final m = _readBodyMap(body);
-      final type = (m['type'] ?? 'Leave').toString();
-      final start = DateTime.tryParse(m['start']?.toString() ?? '');
-      final end = DateTime.tryParse(m['end']?.toString() ?? '');
+      final type = (m['leave_type'] ?? m['type'] ?? 'Leave').toString();
+      final start = DateTime.tryParse(m['start_date']?.toString() ?? m['start']?.toString() ?? '');
+      final end = DateTime.tryParse(m['end_date']?.toString() ?? m['end']?.toString() ?? '');
       if (start == null || end == null) throw const MockApiException('Invalid dates', statusCode: 400);
       final req = <String, dynamic>{
         'id': _newId('lv'),
-        'type': type,
-        'start': start.toIso8601String(),
-        'end': end.toIso8601String(),
+        'leave_type': type,
+        'start_date': start.toIso8601String(),
+        'end_date': end.toIso8601String(),
         'status': 'pending',
       };
       _leaveRequests.insert(0, req);
       return <String, dynamic>{'data': req};
     }
 
-    if (method == 'DELETE' && normalized.startsWith('/leave/requests/')) {
-      final id = normalized.split('/').last;
+    final leaveDeleteMatch = RegExp(r'^/leaves/(.+)$').firstMatch(normalized);
+    if (method == 'DELETE' && leaveDeleteMatch != null) {
+      final id = leaveDeleteMatch.group(1)!;
       _leaveRequests.removeWhere((r) => r['id']?.toString() == id);
       return <String, dynamic>{'ok': true};
     }
 
-    // Notifications
-    if (method == 'GET' && normalized == '/notifications') return <String, dynamic>{'data': _notifications};
+    // Notifications - API returns {notifications: [...]} with is_read field
+    if (method == 'GET' && normalized == '/notifications') {
+      return <String, dynamic>{'notifications': _notifications};
+    }
 
-    if (method == 'POST' && normalized.startsWith('/notifications/') && normalized.endsWith('/read')) {
+    if ((method == 'PUT' || method == 'POST') && normalized.startsWith('/notifications/') && normalized.endsWith('/read')) {
       final parts = normalized.split('/');
       if (parts.length >= 3) {
         final id = parts[2];
         final idx = _notifications.indexWhere((n) => n['id']?.toString() == id);
-        if (idx != -1) _notifications[idx] = <String, dynamic>{..._notifications[idx], 'read': true};
+        if (idx != -1) _notifications[idx] = <String, dynamic>{..._notifications[idx], 'is_read': true, 'read': true};
       }
       return <String, dynamic>{'ok': true};
     }
 
-    // Payroll
-    if (method == 'GET' && normalized == '/payslips') return <String, dynamic>{'data': _payslips};
-    if (method == 'GET' && normalized.startsWith('/payslips/')) {
-      final id = normalized.split('/').last;
+    // Payroll - API returns {approved: [...]}
+    if (method == 'GET' && normalized == '/payroll/approved') {
+      return <String, dynamic>{'approved': _payslips};
+    }
+
+    final payslipMatch = RegExp(r'^/payroll/approved/(.+)$').firstMatch(normalized);
+    if (method == 'GET' && payslipMatch != null) {
+      final id = payslipMatch.group(1)!;
       final p = _payslips.cast<Map<String, dynamic>?>().firstWhere((e) => e?['id']?.toString() == id, orElse: () => null);
       if (p == null) throw const MockApiException('Payslip not found', statusCode: 404);
-      final baseNet = (p['net'] is num) ? (p['net'] as num).toDouble() : 0.0;
+      final baseNet = (p['net_salary'] is num) ? (p['net_salary'] as num).toDouble() : 0.0;
       return <String, dynamic>{
         'data': {
           ...p,
@@ -242,39 +270,64 @@ class MockApiServer {
       };
     }
 
-    // Support
+    // Support - API returns {tickets: [...]}
     if (method == 'GET' && normalized == '/support/tickets') {
       final list = _supportTickets.map((t) => {...t}..remove('replies')).toList(growable: false);
-      return <String, dynamic>{'data': list};
+      return <String, dynamic>{'tickets': list};
     }
-    if (method == 'GET' && normalized.startsWith('/support/tickets/')) {
-      final id = normalized.split('/').last;
+
+    final ticketDetailMatch = RegExp(r'^/support/tickets/([^/]+)$').firstMatch(normalized);
+    if (method == 'GET' && ticketDetailMatch != null) {
+      final id = ticketDetailMatch.group(1)!;
       final t = _supportTickets.cast<Map<String, dynamic>?>().firstWhere((e) => e?['id']?.toString() == id, orElse: () => null);
       if (t == null) throw const MockApiException('Ticket not found', statusCode: 404);
       return <String, dynamic>{'data': t};
     }
+
     if (method == 'POST' && normalized == '/support/tickets') {
       final m = _readBodyMap(body);
       final subject = (m['subject'] ?? '').toString().trim();
-      final message = (m['message'] ?? '').toString().trim();
+      final message = (m['description'] ?? m['message'] ?? '').toString().trim();
       if (subject.isEmpty || message.isEmpty) throw const MockApiException('Subject and message required', statusCode: 400);
       final ticket = <String, dynamic>{
         'id': _newId('tkt'),
         'subject': subject,
         'status': 'open',
-        'createdAt': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toIso8601String(),
         'replies': [
           {
             'id': _newId('r'),
             'message': message,
-            'createdAt': DateTime.now().toIso8601String(),
-            'fromStaff': false,
+            'created_at': DateTime.now().toIso8601String(),
+            'from_staff': false,
           },
         ],
       };
       _supportTickets.insert(0, ticket);
       return <String, dynamic>{'data': ticket};
     }
+
+    // Support reply endpoint (singular "reply" not "replies")
+    final ticketReplyMatch = RegExp(r'^/support/tickets/([^/]+)/reply$').firstMatch(normalized);
+    if (method == 'POST' && ticketReplyMatch != null) {
+      final ticketId = ticketReplyMatch.group(1)!;
+      final idx = _supportTickets.indexWhere((t) => t['id']?.toString() == ticketId);
+      if (idx == -1) throw const MockApiException('Ticket not found', statusCode: 404);
+      final msg = (_readBodyMap(body)['message'] ?? '').toString().trim();
+      if (msg.isEmpty) throw const MockApiException('Message required', statusCode: 400);
+      final ticket = _supportTickets[idx];
+      final replies = (ticket['replies'] is List) ? (ticket['replies'] as List).whereType<Map>().toList() : <Map>[];
+      replies.add({
+        'id': _newId('r'),
+        'message': msg,
+        'created_at': DateTime.now().toIso8601String(),
+        'from_staff': false,
+      });
+      _supportTickets[idx] = <String, dynamic>{...ticket, 'replies': replies};
+      return <String, dynamic>{'ok': true};
+    }
+
+    // Also support old /replies endpoint for backwards compatibility
     if (method == 'POST' && normalized.contains('/support/tickets/') && normalized.endsWith('/replies')) {
       final parts = normalized.split('/');
       final ticketId = parts.length >= 4 ? parts[3] : null;
@@ -288,8 +341,8 @@ class MockApiServer {
       replies.add({
         'id': _newId('r'),
         'message': msg,
-        'createdAt': DateTime.now().toIso8601String(),
-        'fromStaff': false,
+        'created_at': DateTime.now().toIso8601String(),
+        'from_staff': false,
       });
       _supportTickets[idx] = <String, dynamic>{...ticket, 'replies': replies};
       return <String, dynamic>{'ok': true};

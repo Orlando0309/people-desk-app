@@ -17,9 +17,9 @@ class ApiException implements Exception {
 
 /// Simple REST client with optional token refresh.
 ///
-/// Assumptions (adjust endpoints to match your backend):
-/// - login: POST /auth/login -> {accessToken, refreshToken, user}
-/// - refresh: POST /auth/refresh -> {accessToken, refreshToken}
+/// Real API contract:
+/// - login: POST /auth/login -> {access_token, refresh_token, user}
+/// - refresh: POST /auth/refresh -> {access_token} (refresh token remains valid)
 class ApiClient {
   final http.Client _http;
   final TokenStorage _tokenStorage;
@@ -29,7 +29,7 @@ class ApiClient {
         _tokenStorage = tokenStorage ?? TokenStorage();
 
   Uri _uri(String path, [Map<String, String>? query]) {
-    final base = AppConfig.apiBaseUrl;
+    final base = AppConfig.apiBaseUrl; // Now a getter for platform detection
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     return Uri.parse('$base$normalizedPath').replace(queryParameters: query);
   }
@@ -125,15 +125,16 @@ class ApiClient {
       final res = await _http.post(
         uri,
         headers: const {'content-type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
+        body: jsonEncode({'refresh_token': refreshToken}),
       );
       if (res.statusCode < 200 || res.statusCode >= 300) return null;
       final decoded = _decodeJson(res);
       if (decoded is! Map) return null;
-      final access = decoded['accessToken'];
-      final refresh = decoded['refreshToken'];
-      if (access is! String || refresh is! String) return null;
-      return AuthTokens(accessToken: access, refreshToken: refresh);
+      // Real API returns access_token; keep existing refresh token if not returned
+      final access = decoded['access_token'] ?? decoded['accessToken'];
+      if (access is! String) return null;
+      final refresh = decoded['refresh_token'] ?? decoded['refreshToken'] ?? refreshToken;
+      return AuthTokens(accessToken: access, refreshToken: refresh as String);
     } catch (e) {
       debugPrint('ApiClient refresh failed: $e');
       return null;
